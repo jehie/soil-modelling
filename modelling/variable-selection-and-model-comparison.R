@@ -4,14 +4,12 @@ new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"
 if(length(new.packages)) install.packages(new.packages)
 lapply(list.of.packages, require, character.only = TRUE)
 
-
 ### Config ###
-input.list = "F:/Gradu/Calculations/predictorList.csv" #
-
-y.variables = c("Acidified.Carbon....by.weight", "Acidified.Nitrogen....by.weight") # What Y-variables to model
+input.list = "F:/data/models.csv" #
+y.variables = c("Carbon", "Nitrogen") # What Y-variables to model
 x.variables.beginning = 11 # First column to have X-variables
-
-
+modeling.selected.variables.output = "F:/data/variable_selection_results.txt"
+modeling.results.output = "F:/data/RFResultsAll.txt"
 
 ### Functions ###
 readTable <- function(path, header=TRUE, separator=";"){
@@ -21,7 +19,6 @@ readTable <- function(path, header=TRUE, separator=";"){
 #####
 # Function for accuracy assessment
 #####
-
 print.accuracy <- function(obs, fit) {
   res <- fit-obs
   bias <- signif(mean(res), 3)
@@ -32,13 +29,11 @@ print.accuracy <- function(obs, fit) {
   ret <- as.numeric(c(RMSE, RMSE.r, bias, bias.r, R2))
 }
 
-
 #####
 # Function for leave-one-out cross-validation (LOOCV) of random forest:
 # regression
 # returns accuracy statistics and predictions for plotting
 #####
-
 cv.reg <- function(data, y, x) {
   pred <- numeric(nrow(data)) #empty vector for results
   for(cv.i in 1:nrow(data)){
@@ -59,18 +54,15 @@ cv.reg <- function(data, y, x) {
   rm(pred,ref,val,xi,yi,rf,x.val,res,pred,cv.i)
 }
 
-
 ### Read CSVs ###
 modeling.dataset.list = readTable(input.list)
 
 ### Variable Selection ###
-
 res.all.inputs <- NULL
 res.vs <- list() #save final variables to a list
 f <- 0 #needed for saving results to list
 
 total.run.time<-Sys.time()
-
 for(i in 1:nrow(modeling.dataset.list)){ # Loop for all files in the modeling csv
   res.all.y <- NULL #results for all y-variables
   modeling.dataset = readTable(paste(tools::file_path_sans_ext(as.character(modeling.dataset.list[i, 'Path'])),".csv", sep=""))
@@ -96,7 +88,7 @@ for(i in 1:nrow(modeling.dataset.list)){ # Loop for all files in the modeling cs
     res.vs[[f]] <- c(modeling.dataset.resolution, y.variable, colnames(x))
     
     ##
-    #random forest
+    # random forest
     ##
     n.rf <- 10 #set how many times RF is averaged
     for(x.rf in 1:n.rf) { 
@@ -117,12 +109,11 @@ for(i in 1:nrow(modeling.dataset.list)){ # Loop for all files in the modeling cs
   res.all.y["Input"] <- modeling.dataset.resolution
   res.all.inputs <- as.data.frame(rbind(res.all.inputs, res.all.y))
 }
+
 print("All Runs Ended")
-save(res.vs, file = "F:/Gradu/Calculations/ModelRun1.11.2016.rda")
 print(Sys.time()-total.run.time)
 
 ### Write Selected Variables to CSV ###
-
 ml <- max(as.numeric(summary(res.vs)[,1])) # max length
 mnv <- ml - 2 # max number of variables
 
@@ -136,13 +127,12 @@ for(e in 1:length(res.vs)) {
 out <- as.data.frame(out)
 row.names(out) <- NULL
 names(out) <- c("Input","Y","No X", 1:mnv)
-write.table(out, "F:/Gradu/Calculations/variable_selection_results.txt")
+write.table(out, modeling.selected.variables.output)
 
 ### Write RF Results to CSV ###
-res.all.inputsVara = res.all.inputs
 res.rf3.vs <- res.all.inputs
 columns = ncol(res.all.inputs)
 res.rf3.vs <- res.rf3.vs[,c(columns,(columns-1),1:(columns-2))] 
 row.names(res.rf3.vs) <- NULL
-write.table(res.rf3.vs, "F:/Gradu/Calculations/RFResultsAll.txt")
+write.table(res.rf3.vs, modeling.results.output)
 
